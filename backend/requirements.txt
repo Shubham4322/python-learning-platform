@@ -10,3 +10,4 @@ tzdata==2025.3
 gunicorn
 whitenoise
 dj-database-url
+django-ckeditor
