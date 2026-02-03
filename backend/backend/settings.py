@@ -1,16 +1,18 @@
 from pathlib import Path
 from datetime import timedelta
+import os
+import dj_database_url  # pip install dj-database-url
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-your-secret-key-here-change-in-production'
+# SECURITY: Use environment variables in production
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-default-key-for-dev-only')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+# SECURITY: DEBUG should be False in production
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ["*"]  # ok for fresher project
+ALLOWED_HOSTS = ["*"] # Adjust to your specific domain later for tighter security
 
 # Application definition
 INSTALLED_APPS = [
@@ -26,8 +28,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-
-    # ✅ CKEditor (ONLY ADDITION)
     'ckeditor',
     'ckeditor_uploader',
 
@@ -36,16 +36,15 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Must be at top
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ FIXED: Must be here for CSS/JS
+    'corsheaders.middleware.CorsMiddleware',        # ✅ FIXED: Right after WhiteNoise/Security
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-
-    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 ROOT_URLCONF = 'backend.urls'
@@ -68,12 +67,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'backend.wsgi.application'
 
-# Database - Using SQLite
+# ✅ FIXED: Use PostgreSQL for production (SQLite data resets on Render)
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'),
+        conn_max_age=600
+    )
 }
 
 # Password validation
@@ -90,11 +89,13 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# Static files (CSS, JavaScript)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+# ✅ Enable WhiteNoise compression
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# ✅ MEDIA (REQUIRED FOR CKEDITOR)
+# MEDIA (REQUIRED FOR CKEDITOR)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -113,16 +114,17 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
-# CORS Settings - Allow React frontend
+# ✅ FIXED: Added placeholder for your live React URL
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+# Add your production frontend URL here once deployed
+# CORS_ALLOWED_ORIGINS += [os.environ.get('FRONTEND_URL')] 
 
 CORS_ALLOW_CREDENTIALS = True
 
-# ==================== JAZZMIN ADMIN SETTINGS ====================
-
+# ==================== JAZZMIN & CKEDITOR SETTINGS ====================
 JAZZMIN_SETTINGS = {
     "site_title": "PyLearn Admin",
     "site_header": "PyLearn",
@@ -142,11 +144,7 @@ JAZZMIN_UI_TWEAKS = {
     "navbar_fixed": True,
 }
 
-# ==================== CKEDITOR SETTINGS ====================
-
-# ✅ REQUIRED
 CKEDITOR_UPLOAD_PATH = "uploads/"
-
 CKEDITOR_CONFIGS = {
     'default': {
         'toolbar': 'Custom',
