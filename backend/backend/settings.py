@@ -1,7 +1,6 @@
 from pathlib import Path
 from datetime import timedelta
 import os
-import dj_database_url  # pip install dj-database-url
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -12,7 +11,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-default-key-for-dev-o
 # SECURITY: DEBUG should be False in production
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ["*"] # Adjust to your specific domain later for tighter security
+ALLOWED_HOSTS = ["*"] 
 
 # Application definition
 INSTALLED_APPS = [
@@ -37,8 +36,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ FIXED: Must be here for CSS/JS
-    'corsheaders.middleware.CorsMiddleware',        # ✅ FIXED: Right after WhiteNoise/Security
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ Required for Static files
+    'corsheaders.middleware.CorsMiddleware',        
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -67,12 +66,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'backend.wsgi.application'
 
-# ✅ FIXED: Use PostgreSQL for production (SQLite data resets on Render)
+# ✅ UPDATED: Fixed for SQLite3 (Removed dj_database_url requirement for build)
 DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
-        conn_max_age=600
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
 
 # Password validation
@@ -92,7 +91,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-# ✅ Enable WhiteNoise compression
+# ✅ Enable WhiteNoise compression for production
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # MEDIA (REQUIRED FOR CKEDITOR)
@@ -114,14 +113,11 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
-# ✅ FIXED: Added placeholder for your live React URL
+# CORS Settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
-# Add your production frontend URL here once deployed
-# CORS_ALLOWED_ORIGINS += [os.environ.get('FRONTEND_URL')] 
-
 CORS_ALLOW_CREDENTIALS = True
 
 # ==================== JAZZMIN & CKEDITOR SETTINGS ====================
