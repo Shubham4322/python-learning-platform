@@ -1,8 +1,13 @@
 import axios from 'axios';
 
+// API URL - Use environment variable or fallback
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pylearn-backend.onrender.com/api';
+
+console.log('API URL:', API_BASE_URL); // For debugging
+
 // Create axios instance
 const API = axios.create({
-    baseURL: 'http://127.0.0.1:8000/api',
+    baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -30,7 +35,7 @@ API.interceptors.response.use(
             if (refreshToken) {
                 try {
                     const response = await axios.post(
-                        'http://127.0.0.1:8000/api/auth/refresh/',
+                        `${API_BASE_URL}/auth/refresh/`,
                         { refresh: refreshToken }
                     );
                     const newAccessToken = response.data.access;
@@ -38,7 +43,6 @@ API.interceptors.response.use(
                     originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                     return API(originalRequest);
                 } catch (refreshError) {
-                    // Refresh failed, clear tokens
                     localStorage.removeItem('access_token');
                     localStorage.removeItem('refresh_token');
                     window.location.href = '/login';
