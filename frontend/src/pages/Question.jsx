@@ -36,9 +36,7 @@ const Question = () => {
             setAllTopics(topicsData);
             setCode('# Write your Python code here\n\n');
         } catch (err) {
-            if (err.response?.status === 403) {
-                setError('This question is locked. Complete previous topics first.');
-            } else if (err.response?.status === 404) {
+            if (err.response?.status === 404) {
                 setError('Question not found.');
             } else {
                 setError('Failed to load question. Please try again.');
@@ -50,7 +48,7 @@ const Question = () => {
     };
 
     const handleRun = async () => {
-        if (!code.trim()) {
+        if (!code.trim() || code.trim() === '# Write your Python code here') {
             setOutput('Error: Please write some code first.');
             return;
         }
@@ -75,7 +73,7 @@ const Question = () => {
     };
 
     const handleSubmit = async () => {
-        if (!code.trim()) {
+        if (!code.trim() || code.trim() === '# Write your Python code here') {
             setOutput('Error: Please write some code first.');
             return;
         }
@@ -140,7 +138,7 @@ const Question = () => {
                     )}
                 </div>
 
-                {/* Question Description - RENDERS HTML */}
+                {/* Question Description */}
                 <div className="question-description">
                     <h2>📋 Problem Description</h2>
                     <div 

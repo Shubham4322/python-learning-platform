@@ -11,25 +11,16 @@ const Sidebar = ({ topics }) => {
                 {topics.map((topic, index) => (
                     <li 
                         key={topic.id} 
-                        className={`sidebar-item ${topic.id === currentTopicId ? 'active' : ''} ${!topic.is_unlocked ? 'locked' : ''}`}
+                        className={`sidebar-item ${topic.id === currentTopicId ? 'active' : ''}`}
                     >
-                        {topic.is_unlocked ? (
-                            <Link to={`/topic/${topic.id}`} className="sidebar-link">
-                                <span className="sidebar-icon">
-                                    {topic.is_completed ? '✓' : topic.id === currentTopicId ? '📖' : '○'}
-                                </span>
-                                <span className="sidebar-text">
-                                    {index + 1}. {topic.title}
-                                </span>
-                            </Link>
-                        ) : (
-                            <div className="sidebar-link disabled">
-                                <span className="sidebar-icon">🔒</span>
-                                <span className="sidebar-text">
-                                    {index + 1}. {topic.title}
-                                </span>
-                            </div>
-                        )}
+                        <Link to={`/topic/${topic.id}`} className="sidebar-link">
+                            <span className="sidebar-icon">
+                                {topic.is_completed ? '✓' : '📖'}
+                            </span>
+                            <span className="sidebar-text">
+                                {index + 1}. {topic.title}
+                            </span>
+                        </Link>
                     </li>
                 ))}
             </ul>

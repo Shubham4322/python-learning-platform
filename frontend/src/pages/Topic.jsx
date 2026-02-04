@@ -25,9 +25,7 @@ const Topic = () => {
             setTopic(topicData);
             setAllTopics(topicsData);
         } catch (err) {
-            if (err.response?.status === 403) {
-                setError('This topic is locked. Complete previous topics first.');
-            } else if (err.response?.status === 404) {
+            if (err.response?.status === 404) {
                 setError('Topic not found.');
             } else {
                 setError('Failed to load topic. Please try again.');
@@ -76,7 +74,7 @@ const Topic = () => {
                     <p className="topic-description">{topic.description}</p>
                 </div>
 
-                {/* Theory Section - RENDERS HTML */}
+                {/* Theory Section */}
                 <div className="theory-section">
                     <h2>📚 Theory</h2>
                     <div 
@@ -94,7 +92,7 @@ const Topic = () => {
                 <div className="questions-section">
                     <h2>💻 Practice Questions</h2>
                     
-                    {topic.questions.length > 0 ? (
+                    {topic.questions && topic.questions.length > 0 ? (
                         <div className="questions-list">
                             {topic.questions.map((question, index) => (
                                 <div 
@@ -133,13 +131,13 @@ const Topic = () => {
                 <div className="topic-footer">
                     <div className="topic-progress-bar">
                         <div className="progress-info">
-                            <span>Progress: {topic.questions.filter(q => q.is_completed).length}/{topic.questions.length} questions completed</span>
+                            <span>Progress: {topic.questions ? topic.questions.filter(q => q.is_completed).length : 0}/{topic.questions ? topic.questions.length : 0} questions completed</span>
                         </div>
                         <div className="progress-bar-bg">
                             <div 
                                 className="progress-bar-fill" 
                                 style={{ 
-                                    width: `${topic.questions.length > 0 
+                                    width: `${topic.questions && topic.questions.length > 0 
                                         ? (topic.questions.filter(q => q.is_completed).length / topic.questions.length) * 100 
                                         : 0}%` 
                                 }}
