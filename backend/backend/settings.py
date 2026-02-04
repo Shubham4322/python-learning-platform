@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'corsheaders',
     # Our apps
     'api',
+    'django_summernote',
 ]
 
 MIDDLEWARE = [
@@ -175,4 +176,24 @@ JAZZMIN_UI_TWEAKS = {
     "theme": "cosmo",
     "navbar_fixed": True,
     "sidebar_fixed": True,
+}
+
+# Summernote Settings
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+SUMMERNOTE_CONFIG = {
+    'summernote': {
+        'width': '100%',
+        'height': '400',
+        'toolbar': [
+            ['style', ['style']],
+            ['font', ['bold', 'italic', 'underline', 'strikethrough', 'clear']],
+            ['fontsize', ['fontsize']],
+            ['color', ['color']],
+            ['para', ['ul', 'ol', 'paragraph']],
+            ['table', ['table']],
+            ['insert', ['link', 'hr']],
+            ['view', ['fullscreen', 'codeview']],
+        ],
+    },
 }

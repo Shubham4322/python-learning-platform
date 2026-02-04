@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
-from django.utils.html import format_html
+from django_summernote.admin import SummernoteModelAdmin
 from .models import Topic, Question, UserProgress, TopicProgress
 
 
@@ -11,7 +11,9 @@ admin.site.index_title = "Welcome to PyLearn Admin Panel"
 
 
 @admin.register(Topic)
-class TopicAdmin(admin.ModelAdmin):
+class TopicAdmin(SummernoteModelAdmin):
+    summernote_fields = ('theory',)  # Rich editor for theory
+    
     list_display = ('id', 'title', 'order', 'questions_count', 'created_at')
     list_display_links = ('id', 'title')
     list_editable = ('order',)
@@ -25,7 +27,9 @@ class TopicAdmin(admin.ModelAdmin):
 
 
 @admin.register(Question)
-class QuestionAdmin(admin.ModelAdmin):
+class QuestionAdmin(SummernoteModelAdmin):
+    summernote_fields = ('description',)  # Rich editor for description
+    
     list_display = ('id', 'title', 'topic', 'order', 'created_at')
     list_display_links = ('id', 'title')
     list_editable = ('order',)
