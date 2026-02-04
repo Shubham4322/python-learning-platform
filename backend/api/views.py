@@ -28,15 +28,6 @@ def register(request):
     if serializer.is_valid():
         user = serializer.save()
         
-        # Unlock first topic for new user
-        first_topic = Topic.objects.order_by('order').first()
-        if first_topic:
-            TopicProgress.objects.get_or_create(
-                user=user,
-                topic=first_topic,
-                defaults={'is_unlocked': True, 'is_completed': False}
-            )
-        
         refresh = RefreshToken.for_user(user)
         
         return Response({
@@ -63,20 +54,20 @@ def get_user(request):
 def get_dashboard(request):
     user = request.user
     
-    # Ensure first topic is unlocked for this user
-    first_topic = Topic.objects.order_by('order').first()
-    if first_topic:
-        TopicProgress.objects.get_or_create(
-            user=user,
-            topic=first_topic,
-            defaults={'is_unlocked': True, 'is_completed': False}
-        )
-    
     total_topics = Topic.objects.count()
-    completed_topics = TopicProgress.objects.filter(
-        user=user,
-        is_completed=True
-    ).count()
+    completed_topics = 0
+    
+    # Count completed topics
+    for topic in Topic.objects.all():
+        total_q = topic.questions.count()
+        if total_q > 0:
+            completed_q = UserProgress.objects.filter(
+                user=user,
+                question__topic=topic,
+                completed=True
+            ).count()
+            if completed_q >= total_q:
+                completed_topics += 1
     
     total_questions = Question.objects.count()
     completed_questions = UserProgress.objects.filter(
@@ -104,15 +95,6 @@ def get_dashboard(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_topics(request):
-    # Ensure first topic is unlocked
-    first_topic = Topic.objects.order_by('order').first()
-    if first_topic:
-        TopicProgress.objects.get_or_create(
-            user=request.user,
-            topic=first_topic,
-            defaults={'is_unlocked': True, 'is_completed': False}
-        )
-    
     topics = Topic.objects.all().order_by('order')
     serializer = TopicSerializer(topics, many=True, context={'request': request})
     return Response(serializer.data)
@@ -128,30 +110,6 @@ def get_topic(request, topic_id):
             {'error': 'Topic not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
-    # Check if this is the first topic
-    first_topic = Topic.objects.order_by('order').first()
-    
-    if topic == first_topic:
-        # First topic is always accessible
-        TopicProgress.objects.get_or_create(
-            user=request.user,
-            topic=topic,
-            defaults={'is_unlocked': True, 'is_completed': False}
-        )
-    else:
-        # Check if topic is unlocked
-        progress = TopicProgress.objects.filter(
-            user=request.user,
-            topic=topic,
-            is_unlocked=True
-        ).first()
-        
-        if not progress:
-            return Response(
-                {'error': 'Topic is locked. Complete previous topics first.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
     
     serializer = TopicDetailSerializer(topic, context={'request': request})
     return Response(serializer.data)
@@ -169,22 +127,6 @@ def get_question(request, question_id):
             {'error': 'Question not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
-    topic = question.topic
-    first_topic = Topic.objects.order_by('order').first()
-    
-    if topic != first_topic:
-        progress = TopicProgress.objects.filter(
-            user=request.user,
-            topic=topic,
-            is_unlocked=True
-        ).first()
-        
-        if not progress:
-            return Response(
-                {'error': 'Topic is locked'},
-                status=status.HTTP_403_FORBIDDEN
-            )
     
     serializer = QuestionDetailSerializer(question, context={'request': request})
     return Response(serializer.data)
@@ -294,55 +236,12 @@ def submit_code(request, question_id):
             user_progress.completed = True
             user_progress.completed_at = timezone.now()
             user_progress.save()
-            
-            # Check if all questions in topic are completed
-            topic = question.topic
-            total_questions = topic.questions.count()
-            completed_questions = UserProgress.objects.filter(
-                user=request.user,
-                question__topic=topic,
-                completed=True
-            ).count()
-            
-            topic_just_completed = False
-            
-            if completed_questions >= total_questions:
-                # Mark current topic as completed
-                topic_progress, created = TopicProgress.objects.get_or_create(
-                    user=request.user,
-                    topic=topic
-                )
-                
-                if not topic_progress.is_completed:
-                    topic_progress.is_completed = True
-                    topic_progress.is_unlocked = True
-                    topic_progress.save()
-                    topic_just_completed = True
-                    
-                    # Unlock next topic
-                    next_topic = Topic.objects.filter(order__gt=topic.order).order_by('order').first()
-                    
-                    if next_topic:
-                        next_progress, created = TopicProgress.objects.get_or_create(
-                            user=request.user,
-                            topic=next_topic
-                        )
-                        next_progress.is_unlocked = True
-                        next_progress.save()
-            
-            return Response({
-                'passed': True,
-                'output': actual_output,
-                'expected': expected_output,
-                'message': 'Correct! Well done!',
-                'topic_completed': topic_just_completed
-            })
         
         return Response({
-            'passed': False,
+            'passed': passed,
             'output': actual_output,
             'expected': expected_output,
-            'message': 'Output does not match expected result'
+            'message': 'Correct! Well done!' if passed else 'Output does not match expected result'
         })
         
     except subprocess.TimeoutExpired:

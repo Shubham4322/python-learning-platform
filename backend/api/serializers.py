@@ -80,34 +80,22 @@ class TopicSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'description', 'order', 'is_unlocked', 'is_completed', 'questions_count', 'completed_count')
 
     def get_is_unlocked(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            # First topic (lowest order) is always unlocked
-            first_topic = Topic.objects.order_by('order').first()
-            if obj == first_topic:
-                return True
-            
-            # Check progress for other topics
-            progress = TopicProgress.objects.filter(
-                user=request.user,
-                topic=obj,
-                is_unlocked=True
-            ).first()
-            return progress is not None
-        
-        # For unauthenticated, only first topic appears unlocked
-        first_topic = Topic.objects.order_by('order').first()
-        return obj == first_topic
+        # All topics are always unlocked
+        return True
 
     def get_is_completed(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            progress = TopicProgress.objects.filter(
+            # Check if all questions are completed
+            total = obj.questions.count()
+            if total == 0:
+                return False
+            completed = UserProgress.objects.filter(
                 user=request.user,
-                topic=obj,
-                is_completed=True
-            ).first()
-            return progress is not None
+                question__topic=obj,
+                completed=True
+            ).count()
+            return completed >= total
         return False
 
     def get_questions_count(self, obj):
@@ -134,27 +122,19 @@ class TopicDetailSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'description', 'theory', 'order', 'questions', 'is_unlocked', 'is_completed')
 
     def get_is_unlocked(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            first_topic = Topic.objects.order_by('order').first()
-            if obj == first_topic:
-                return True
-            
-            progress = TopicProgress.objects.filter(
-                user=request.user,
-                topic=obj,
-                is_unlocked=True
-            ).first()
-            return progress is not None
-        return False
+        # All topics are always unlocked
+        return True
 
     def get_is_completed(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            progress = TopicProgress.objects.filter(
+            total = obj.questions.count()
+            if total == 0:
+                return False
+            completed = UserProgress.objects.filter(
                 user=request.user,
-                topic=obj,
-                is_completed=True
-            ).first()
-            return progress is not None
+                question__topic=obj,
+                completed=True
+            ).count()
+            return completed >= total
         return False
