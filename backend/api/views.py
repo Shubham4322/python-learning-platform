@@ -24,14 +24,19 @@ from .serializers import (
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
-    """
-    Register a new user.
-    """
     serializer = UserRegisterSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
         
-        # Create tokens for immediate login
+        # Unlock first topic for new user
+        first_topic = Topic.objects.order_by('order').first()
+        if first_topic:
+            TopicProgress.objects.get_or_create(
+                user=user,
+                topic=first_topic,
+                defaults={'is_unlocked': True, 'is_completed': False}
+            )
+        
         refresh = RefreshToken.for_user(user)
         
         return Response({
@@ -49,9 +54,6 @@ def register(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user(request):
-    """
-    Get current logged in user details.
-    """
     serializer = UserSerializer(request.user)
     return Response(serializer.data)
 
@@ -59,27 +61,30 @@ def get_user(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_dashboard(request):
-    """
-    Get dashboard data for logged in user.
-    """
     user = request.user
     
-    # Get total topics and completed topics
+    # Ensure first topic is unlocked for this user
+    first_topic = Topic.objects.order_by('order').first()
+    if first_topic:
+        TopicProgress.objects.get_or_create(
+            user=user,
+            topic=first_topic,
+            defaults={'is_unlocked': True, 'is_completed': False}
+        )
+    
     total_topics = Topic.objects.count()
     completed_topics = TopicProgress.objects.filter(
         user=user,
         is_completed=True
     ).count()
     
-    # Get total questions and completed questions
     total_questions = Question.objects.count()
     completed_questions = UserProgress.objects.filter(
         user=user,
         completed=True
     ).count()
     
-    # Get all topics with progress
-    topics = Topic.objects.all()
+    topics = Topic.objects.all().order_by('order')
     topics_serializer = TopicSerializer(topics, many=True, context={'request': request})
     
     return Response({
@@ -99,10 +104,16 @@ def get_dashboard(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_topics(request):
-    """
-    Get all topics with progress info.
-    """
-    topics = Topic.objects.all()
+    # Ensure first topic is unlocked
+    first_topic = Topic.objects.order_by('order').first()
+    if first_topic:
+        TopicProgress.objects.get_or_create(
+            user=request.user,
+            topic=first_topic,
+            defaults={'is_unlocked': True, 'is_completed': False}
+        )
+    
+    topics = Topic.objects.all().order_by('order')
     serializer = TopicSerializer(topics, many=True, context={'request': request})
     return Response(serializer.data)
 
@@ -110,9 +121,6 @@ def get_topics(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_topic(request, topic_id):
-    """
-    Get single topic with questions.
-    """
     try:
         topic = Topic.objects.get(id=topic_id)
     except Topic.DoesNotExist:
@@ -121,15 +129,27 @@ def get_topic(request, topic_id):
             status=status.HTTP_404_NOT_FOUND
         )
     
-    # Check if topic is unlocked
-    if topic.order != 1:
+    # Check if this is the first topic
+    first_topic = Topic.objects.order_by('order').first()
+    
+    if topic == first_topic:
+        # First topic is always accessible
+        TopicProgress.objects.get_or_create(
+            user=request.user,
+            topic=topic,
+            defaults={'is_unlocked': True, 'is_completed': False}
+        )
+    else:
+        # Check if topic is unlocked
         progress = TopicProgress.objects.filter(
             user=request.user,
-            topic=topic
+            topic=topic,
+            is_unlocked=True
         ).first()
-        if not progress or not progress.is_unlocked:
+        
+        if not progress:
             return Response(
-                {'error': 'Topic is locked'},
+                {'error': 'Topic is locked. Complete previous topics first.'},
                 status=status.HTTP_403_FORBIDDEN
             )
     
@@ -142,9 +162,6 @@ def get_topic(request, topic_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_question(request, question_id):
-    """
-    Get single question details.
-    """
     try:
         question = Question.objects.get(id=question_id)
     except Question.DoesNotExist:
@@ -153,14 +170,17 @@ def get_question(request, question_id):
             status=status.HTTP_404_NOT_FOUND
         )
     
-    # Check if topic is unlocked
     topic = question.topic
-    if topic.order != 1:
+    first_topic = Topic.objects.order_by('order').first()
+    
+    if topic != first_topic:
         progress = TopicProgress.objects.filter(
             user=request.user,
-            topic=topic
+            topic=topic,
+            is_unlocked=True
         ).first()
-        if not progress or not progress.is_unlocked:
+        
+        if not progress:
             return Response(
                 {'error': 'Topic is locked'},
                 status=status.HTTP_403_FORBIDDEN
@@ -173,9 +193,6 @@ def get_question(request, question_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def run_code(request):
-    """
-    Run Python code and return output.
-    """
     code = request.data.get('code', '')
     
     if not code.strip():
@@ -185,20 +202,17 @@ def run_code(request):
         )
     
     try:
-        # Create temporary file to run code
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
             f.write(code)
             temp_file = f.name
         
-        # Run the code with timeout
         result = subprocess.run(
             ['python', temp_file],
             capture_output=True,
             text=True,
-            timeout=5  # 5 second timeout
+            timeout=5
         )
         
-        # Clean up temp file
         os.unlink(temp_file)
         
         if result.returncode == 0:
@@ -228,9 +242,6 @@ def run_code(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def submit_code(request, question_id):
-    """
-    Submit code for a question and check if output matches.
-    """
     try:
         question = Question.objects.get(id=question_id)
     except Question.DoesNotExist:
@@ -248,12 +259,10 @@ def submit_code(request, question_id):
         )
     
     try:
-        # Create temporary file to run code
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
             f.write(code)
             temp_file = f.name
         
-        # Run the code
         result = subprocess.run(
             ['python', temp_file],
             capture_output=True,
@@ -261,7 +270,6 @@ def submit_code(request, question_id):
             timeout=5
         )
         
-        # Clean up
         os.unlink(temp_file)
         
         if result.returncode != 0:
@@ -272,7 +280,6 @@ def submit_code(request, question_id):
                 'message': 'Code has errors'
             })
         
-        # Compare output with expected
         actual_output = result.stdout.strip()
         expected_output = question.expected_output.strip()
         
@@ -297,31 +304,45 @@ def submit_code(request, question_id):
                 completed=True
             ).count()
             
+            topic_just_completed = False
+            
             if completed_questions >= total_questions:
-                # Mark topic as completed
+                # Mark current topic as completed
                 topic_progress, created = TopicProgress.objects.get_or_create(
                     user=request.user,
                     topic=topic
                 )
-                topic_progress.is_completed = True
-                topic_progress.is_unlocked = True
-                topic_progress.save()
                 
-                # Unlock next topic
-                next_topic = Topic.objects.filter(order=topic.order + 1).first()
-                if next_topic:
-                    next_progress, created = TopicProgress.objects.get_or_create(
-                        user=request.user,
-                        topic=next_topic
-                    )
-                    next_progress.is_unlocked = True
-                    next_progress.save()
+                if not topic_progress.is_completed:
+                    topic_progress.is_completed = True
+                    topic_progress.is_unlocked = True
+                    topic_progress.save()
+                    topic_just_completed = True
+                    
+                    # Unlock next topic
+                    next_topic = Topic.objects.filter(order__gt=topic.order).order_by('order').first()
+                    
+                    if next_topic:
+                        next_progress, created = TopicProgress.objects.get_or_create(
+                            user=request.user,
+                            topic=next_topic
+                        )
+                        next_progress.is_unlocked = True
+                        next_progress.save()
+            
+            return Response({
+                'passed': True,
+                'output': actual_output,
+                'expected': expected_output,
+                'message': 'Correct! Well done!',
+                'topic_completed': topic_just_completed
+            })
         
         return Response({
-            'passed': passed,
+            'passed': False,
             'output': actual_output,
             'expected': expected_output,
-            'message': 'Correct! Well done!' if passed else 'Output does not match expected result'
+            'message': 'Output does not match expected result'
         })
         
     except subprocess.TimeoutExpired:

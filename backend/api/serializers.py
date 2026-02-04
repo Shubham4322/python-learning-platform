@@ -4,9 +4,6 @@ from .models import Topic, Question, UserProgress, TopicProgress
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
-    """
-    Serializer for user registration.
-    """
     password = serializers.CharField(write_only=True, min_length=6)
     password2 = serializers.CharField(write_only=True, min_length=6)
 
@@ -15,15 +12,12 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'email', 'password', 'password2')
 
     def validate(self, data):
-        # Check if passwords match
         if data['password'] != data['password2']:
             raise serializers.ValidationError({"password": "Passwords do not match"})
         return data
 
     def create(self, validated_data):
-        # Remove password2 as it's not needed for creating user
         validated_data.pop('password2')
-        # Create user with hashed password
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data.get('email', ''),
@@ -33,18 +27,12 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """
-    Serializer for user details.
-    """
     class Meta:
         model = User
         fields = ('id', 'username', 'email')
 
 
 class QuestionSerializer(serializers.ModelSerializer):
-    """
-    Serializer for questions.
-    """
     is_completed = serializers.SerializerMethodField()
 
     class Meta:
@@ -63,9 +51,6 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 
 class QuestionDetailSerializer(serializers.ModelSerializer):
-    """
-    Serializer for single question with all details.
-    """
     is_completed = serializers.SerializerMethodField()
     topic_title = serializers.CharField(source='topic.title', read_only=True)
 
@@ -85,9 +70,6 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
 
 
 class TopicSerializer(serializers.ModelSerializer):
-    """
-    Serializer for topics list.
-    """
     is_unlocked = serializers.SerializerMethodField()
     is_completed = serializers.SerializerMethodField()
     questions_count = serializers.SerializerMethodField()
@@ -100,24 +82,32 @@ class TopicSerializer(serializers.ModelSerializer):
     def get_is_unlocked(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            # First topic is always unlocked
-            if obj.order == 1:
+            # First topic (lowest order) is always unlocked
+            first_topic = Topic.objects.order_by('order').first()
+            if obj == first_topic:
                 return True
+            
+            # Check progress for other topics
             progress = TopicProgress.objects.filter(
                 user=request.user,
-                topic=obj
+                topic=obj,
+                is_unlocked=True
             ).first()
-            return progress.is_unlocked if progress else False
-        return obj.order == 1
+            return progress is not None
+        
+        # For unauthenticated, only first topic appears unlocked
+        first_topic = Topic.objects.order_by('order').first()
+        return obj == first_topic
 
     def get_is_completed(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             progress = TopicProgress.objects.filter(
                 user=request.user,
-                topic=obj
+                topic=obj,
+                is_completed=True
             ).first()
-            return progress.is_completed if progress else False
+            return progress is not None
         return False
 
     def get_questions_count(self, obj):
@@ -135,9 +125,6 @@ class TopicSerializer(serializers.ModelSerializer):
 
 
 class TopicDetailSerializer(serializers.ModelSerializer):
-    """
-    Serializer for single topic with questions.
-    """
     questions = QuestionSerializer(many=True, read_only=True)
     is_unlocked = serializers.SerializerMethodField()
     is_completed = serializers.SerializerMethodField()
@@ -149,30 +136,25 @@ class TopicDetailSerializer(serializers.ModelSerializer):
     def get_is_unlocked(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            if obj.order == 1:
+            first_topic = Topic.objects.order_by('order').first()
+            if obj == first_topic:
                 return True
+            
             progress = TopicProgress.objects.filter(
                 user=request.user,
-                topic=obj
+                topic=obj,
+                is_unlocked=True
             ).first()
-            return progress.is_unlocked if progress else False
-        return obj.order == 1
+            return progress is not None
+        return False
 
     def get_is_completed(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             progress = TopicProgress.objects.filter(
                 user=request.user,
-                topic=obj
+                topic=obj,
+                is_completed=True
             ).first()
-            return progress.is_completed if progress else False
+            return progress is not None
         return False
-
-
-class UserProgressSerializer(serializers.ModelSerializer):
-    """
-    Serializer for user progress.
-    """
-    class Meta:
-        model = UserProgress
-        fields = ('id', 'question', 'completed', 'completed_at')
