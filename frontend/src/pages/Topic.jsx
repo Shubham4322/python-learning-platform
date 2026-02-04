@@ -18,7 +18,6 @@ const Topic = () => {
         setLoading(true);
         setError('');
         try {
-            // Fetch current topic and all topics
             const [topicData, topicsData] = await Promise.all([
                 getTopic(topicId),
                 getTopics()
@@ -77,14 +76,13 @@ const Topic = () => {
                     <p className="topic-description">{topic.description}</p>
                 </div>
 
-                {/* Theory Section */}
+                {/* Theory Section - RENDERS HTML */}
                 <div className="theory-section">
                     <h2>📚 Theory</h2>
-                    <div className="theory-content">
-                        {topic.theory.split('\n').map((paragraph, index) => (
-                            <p key={index}>{paragraph}</p>
-                        ))}
-                    </div>
+                    <div 
+                        className="theory-content"
+                        dangerouslySetInnerHTML={{ __html: topic.theory }}
+                    />
                 </div>
 
                 {/* Instructions */}
@@ -112,7 +110,6 @@ const Topic = () => {
                                     </div>
                                     <div className="question-info">
                                         <h3>Question {index + 1}: {question.title}</h3>
-                                        <p>{question.description}</p>
                                     </div>
                                     <div className="question-action">
                                         <Link 

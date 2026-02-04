@@ -1541,3 +1541,171 @@
     color: #666;
     font-size: 1rem;
 }
+
+/* ==================== RICH TEXT CONTENT ==================== */
+.theory-content,
+.description-content {
+    line-height: 1.8;
+    color: #333;
+}
+
+.theory-content h1,
+.description-content h1 {
+    font-size: 1.8rem;
+    color: #2c3e50;
+    margin: 25px 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #3498db;
+}
+
+.theory-content h2,
+.description-content h2 {
+    font-size: 1.5rem;
+    color: #2c3e50;
+    margin: 20px 0 12px 0;
+}
+
+.theory-content h3,
+.description-content h3 {
+    font-size: 1.3rem;
+    color: #34495e;
+    margin: 18px 0 10px 0;
+}
+
+.theory-content p,
+.description-content p {
+    margin-bottom: 15px;
+    text-align: justify;
+}
+
+.theory-content strong,
+.description-content strong,
+.theory-content b,
+.description-content b {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.theory-content ul,
+.description-content ul {
+    margin: 15px 0;
+    padding-left: 25px;
+}
+
+.theory-content ol,
+.description-content ol {
+    margin: 15px 0;
+    padding-left: 25px;
+}
+
+.theory-content li,
+.description-content li {
+    margin-bottom: 10px;
+    line-height: 1.7;
+}
+
+.theory-content pre,
+.description-content pre {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    padding: 15px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 15px 0;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.theory-content code,
+.description-content code {
+    background-color: #f0f0f0;
+    color: #e74c3c;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+}
+
+.theory-content pre code,
+.description-content pre code {
+    background-color: transparent;
+    color: #d4d4d4;
+    padding: 0;
+}
+
+.theory-content table,
+.description-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.theory-content th,
+.description-content th,
+.theory-content td,
+.description-content td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+.theory-content th,
+.description-content th {
+    background-color: #3498db;
+    color: white;
+    font-weight: 600;
+}
+
+.theory-content tr:nth-child(even),
+.description-content tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.theory-content blockquote,
+.description-content blockquote {
+    border-left: 4px solid #3498db;
+    margin: 20px 0;
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    color: #555;
+    font-style: italic;
+}
+
+.theory-content a,
+.description-content a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.theory-content a:hover,
+.description-content a:hover {
+    text-decoration: underline;
+}
+
+.theory-content hr,
+.description-content hr {
+    border: none;
+    border-top: 2px solid #e0e0e0;
+    margin: 25px 0;
+}
+
+.theory-content img,
+.description-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 15px 0;
+}
+
+/* Center aligned text */
+.theory-content [align="center"],
+.description-content [align="center"] {
+    text-align: center;
+}
+
+/* Fix for font tags */
+.theory-content font,
+.description-content font {
+    font-family: inherit !important;
+}

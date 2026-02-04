@@ -34,7 +34,6 @@ const Question = () => {
             ]);
             setQuestion(questionData);
             setAllTopics(topicsData);
-            // Set initial code template
             setCode('# Write your Python code here\n\n');
         } catch (err) {
             if (err.response?.status === 403) {
@@ -98,7 +97,6 @@ const Question = () => {
     };
 
     const handleNextQuestion = () => {
-        // Find next question in same topic or go back to topic
         navigate(`/topic/${question.topic}`);
     };
 
@@ -142,10 +140,13 @@ const Question = () => {
                     )}
                 </div>
 
-                {/* Question Description */}
+                {/* Question Description - RENDERS HTML */}
                 <div className="question-description">
                     <h2>📋 Problem Description</h2>
-                    <p>{question.description}</p>
+                    <div 
+                        className="description-content"
+                        dangerouslySetInnerHTML={{ __html: question.description }}
+                    />
                 </div>
 
                 {/* Expected Output Hint */}
