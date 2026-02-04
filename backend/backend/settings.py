@@ -27,7 +27,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-    'ckeditor',
     'ckeditor_uploader',
 
     # Our apps
