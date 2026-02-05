@@ -8,6 +8,7 @@ from django.utils import timezone
 import subprocess
 import tempfile
 import os
+import re
 
 from .models import Topic, Question, UserProgress, TopicProgress
 from .serializers import (
@@ -19,7 +20,26 @@ from .serializers import (
 )
 
 
-# ==================== AUTH VIEWS ====================
+def normalize_output(text):
+    """
+    Normalize output for comparison:
+    - Remove \r (Windows line endings)
+    - Strip leading/trailing whitespace
+    - Normalize multiple spaces
+    """
+    if text is None:
+        return ""
+    # Remove carriage returns (Windows line endings)
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    # Strip leading/trailing whitespace from each line
+    lines = [line.strip() for line in text.strip().split('\n')]
+    # Remove empty lines at start and end
+    while lines and lines[0] == '':
+        lines.pop(0)
+    while lines and lines[-1] == '':
+        lines.pop()
+    return '\n'.join(lines)
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -27,9 +47,7 @@ def register(request):
     serializer = UserRegisterSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
-        
         refresh = RefreshToken.for_user(user)
-        
         return Response({
             'message': 'Registration successful',
             'user': UserSerializer(user).data,
@@ -38,7 +56,6 @@ def register(request):
                 'access': str(refresh.access_token),
             }
         }, status=status.HTTP_201_CREATED)
-    
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -57,7 +74,6 @@ def get_dashboard(request):
     total_topics = Topic.objects.count()
     completed_topics = 0
     
-    # Count completed topics
     for topic in Topic.objects.all():
         total_q = topic.questions.count()
         if total_q > 0:
@@ -90,8 +106,6 @@ def get_dashboard(request):
     })
 
 
-# ==================== TOPIC VIEWS ====================
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_topics(request):
@@ -106,16 +120,11 @@ def get_topic(request, topic_id):
     try:
         topic = Topic.objects.get(id=topic_id)
     except Topic.DoesNotExist:
-        return Response(
-            {'error': 'Topic not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({'error': 'Topic not found'}, status=status.HTTP_404_NOT_FOUND)
     
     serializer = TopicDetailSerializer(topic, context={'request': request})
     return Response(serializer.data)
 
-
-# ==================== QUESTION VIEWS ====================
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -123,10 +132,7 @@ def get_question(request, question_id):
     try:
         question = Question.objects.get(id=question_id)
     except Question.DoesNotExist:
-        return Response(
-            {'error': 'Question not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({'error': 'Question not found'}, status=status.HTTP_404_NOT_FOUND)
     
     serializer = QuestionDetailSerializer(question, context={'request': request})
     return Response(serializer.data)
@@ -138,13 +144,10 @@ def run_code(request):
     code = request.data.get('code', '')
     
     if not code.strip():
-        return Response(
-            {'error': 'No code provided'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({'error': 'No code provided'}, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
             f.write(code)
             temp_file = f.name
         
@@ -152,33 +155,22 @@ def run_code(request):
             ['python', temp_file],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
+            encoding='utf-8'
         )
         
         os.unlink(temp_file)
         
         if result.returncode == 0:
-            return Response({
-                'output': result.stdout,
-                'error': None
-            })
+            return Response({'output': result.stdout, 'error': None})
         else:
-            return Response({
-                'output': None,
-                'error': result.stderr
-            })
+            return Response({'output': None, 'error': result.stderr})
             
     except subprocess.TimeoutExpired:
         os.unlink(temp_file)
-        return Response({
-            'output': None,
-            'error': 'Code execution timed out (max 5 seconds)'
-        })
+        return Response({'output': None, 'error': 'Code execution timed out (max 5 seconds)'})
     except Exception as e:
-        return Response({
-            'output': None,
-            'error': str(e)
-        })
+        return Response({'output': None, 'error': str(e)})
 
 
 @api_view(['POST'])
@@ -187,21 +179,15 @@ def submit_code(request, question_id):
     try:
         question = Question.objects.get(id=question_id)
     except Question.DoesNotExist:
-        return Response(
-            {'error': 'Question not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({'error': 'Question not found'}, status=status.HTTP_404_NOT_FOUND)
     
     code = request.data.get('code', '')
     
     if not code.strip():
-        return Response(
-            {'error': 'No code provided'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({'error': 'No code provided'}, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
             f.write(code)
             temp_file = f.name
         
@@ -209,7 +195,8 @@ def submit_code(request, question_id):
             ['python', temp_file],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
+            encoding='utf-8'
         )
         
         os.unlink(temp_file)
@@ -222,13 +209,13 @@ def submit_code(request, question_id):
                 'message': 'Code has errors'
             })
         
-        actual_output = result.stdout.strip()
-        expected_output = question.expected_output.strip()
+        # Normalize both outputs for comparison
+        actual_output = normalize_output(result.stdout)
+        expected_output = normalize_output(question.expected_output)
         
         passed = actual_output == expected_output
         
         if passed:
-            # Mark question as completed
             user_progress, created = UserProgress.objects.get_or_create(
                 user=request.user,
                 question=question

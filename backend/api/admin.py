@@ -12,12 +12,10 @@ admin.site.index_title = "Welcome to PyLearn Admin Panel"
 
 @admin.register(Topic)
 class TopicAdmin(SummernoteModelAdmin):
-    summernote_fields = ('theory',)  # Rich editor for theory
-    
+    summernote_fields = ('theory',)
     list_display = ('id', 'title', 'order', 'questions_count', 'created_at')
     list_display_links = ('id', 'title')
     list_editable = ('order',)
-    list_filter = ('created_at',)
     search_fields = ('title', 'description')
     ordering = ('order',)
     
@@ -28,12 +26,11 @@ class TopicAdmin(SummernoteModelAdmin):
 
 @admin.register(Question)
 class QuestionAdmin(SummernoteModelAdmin):
-    summernote_fields = ('description',)  # Rich editor for description
-    
+    summernote_fields = ('description',)
     list_display = ('id', 'title', 'topic', 'order', 'created_at')
     list_display_links = ('id', 'title')
     list_editable = ('order',)
-    list_filter = ('topic', 'created_at')
+    list_filter = ('topic',)
     search_fields = ('title', 'description')
     ordering = ('topic', 'order')
 
@@ -51,7 +48,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
 
 
 class CustomUserAdmin(UserAdmin):
-    search_fields = ('username', 'email', 'first_name', 'last_name')
+    search_fields = ('username', 'email')
 
 
 admin.site.unregister(User)

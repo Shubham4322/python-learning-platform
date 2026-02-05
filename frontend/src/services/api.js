@@ -1,11 +1,13 @@
 import axios from 'axios';
 
-// API URL - Use environment variable or fallback
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pylearn-backend.onrender.com/api';
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-console.log('API URL:', API_BASE_URL); // For debugging
+const API_BASE_URL = isLocalhost 
+    ? 'http://127.0.0.1:8000/api'
+    : 'https://pylearn-backend.onrender.com/api';
 
-// Create axios instance
+console.log('API URL:', API_BASE_URL);
+
 const API = axios.create({
     baseURL: API_BASE_URL,
     headers: {
@@ -13,7 +15,6 @@ const API = axios.create({
     },
 });
 
-// Add token to requests if it exists
 API.interceptors.request.use((config) => {
     const token = localStorage.getItem('access_token');
     if (token) {
@@ -22,15 +23,12 @@ API.interceptors.request.use((config) => {
     return config;
 });
 
-// Handle token refresh on 401 errors
 API.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
-
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
-
             const refreshToken = localStorage.getItem('refresh_token');
             if (refreshToken) {
                 try {
@@ -53,8 +51,6 @@ API.interceptors.response.use(
     }
 );
 
-// ==================== AUTH API ====================
-
 export const registerUser = async (userData) => {
     const response = await API.post('/auth/register/', userData);
     return response.data;
@@ -70,14 +66,10 @@ export const getUser = async () => {
     return response.data;
 };
 
-// ==================== DASHBOARD API ====================
-
 export const getDashboard = async () => {
     const response = await API.get('/dashboard/');
     return response.data;
 };
-
-// ==================== TOPICS API ====================
 
 export const getTopics = async () => {
     const response = await API.get('/topics/');
@@ -88,8 +80,6 @@ export const getTopic = async (topicId) => {
     const response = await API.get(`/topics/${topicId}/`);
     return response.data;
 };
-
-// ==================== QUESTIONS API ====================
 
 export const getQuestion = async (questionId) => {
     const response = await API.get(`/questions/${questionId}/`);

@@ -80,13 +80,11 @@ class TopicSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'description', 'order', 'is_unlocked', 'is_completed', 'questions_count', 'completed_count')
 
     def get_is_unlocked(self, obj):
-        # All topics are always unlocked
         return True
 
     def get_is_completed(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            # Check if all questions are completed
             total = obj.questions.count()
             if total == 0:
                 return False
@@ -122,7 +120,6 @@ class TopicDetailSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'description', 'theory', 'order', 'questions', 'is_unlocked', 'is_completed')
 
     def get_is_unlocked(self, obj):
-        # All topics are always unlocked
         return True
 
     def get_is_completed(self, obj):
