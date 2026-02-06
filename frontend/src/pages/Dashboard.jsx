@@ -84,7 +84,7 @@ const Dashboard = () => {
                 <section className="topics-section">
                     <div className="topics-header">
                         <h2>Learning Topics</h2>
-                        {topics.length > 0 && (
+                        {topics.length > 0 && topics[0].is_unlocked && (
                             <Link to={`/topic/${topics[0].id}`} className="start-learning-btn">
                                 Start Learning
                             </Link>
@@ -95,13 +95,15 @@ const Dashboard = () => {
                         {topics.map((topic, index) => (
                             <div 
                                 key={topic.id} 
-                                className={`topic-card unlocked ${topic.is_completed ? 'completed' : ''}`}
+                                className={`topic-card ${topic.is_unlocked ? 'unlocked' : 'locked'} ${topic.is_completed ? 'completed' : ''}`}
                             >
                                 <div className="topic-status">
                                     {topic.is_completed ? (
                                         <span className="status-icon completed">✓</span>
-                                    ) : (
+                                    ) : topic.is_unlocked ? (
                                         <span className="status-icon unlocked">📖</span>
+                                    ) : (
+                                        <span className="status-icon locked">🔒</span>
                                     )}
                                 </div>
 
@@ -116,9 +118,13 @@ const Dashboard = () => {
                                 </div>
 
                                 <div className="topic-action">
-                                    <Link to={`/topic/${topic.id}`} className="topic-button">
-                                        {topic.is_completed ? 'Review' : 'Start'}
-                                    </Link>
+                                    {topic.is_unlocked ? (
+                                        <Link to={`/topic/${topic.id}`} className="topic-button">
+                                            {topic.is_completed ? 'Review' : 'Start'}
+                                        </Link>
+                                    ) : (
+                                        <span className="topic-locked-text">🔒 Locked</span>
+                                    )}
                                 </div>
                             </div>
                         ))}

@@ -1743,3 +1743,19 @@ pre {
     word-wrap: break-word !important;
     overflow-wrap: break-word !important;
 }
+
+/* ==================== TOPIC UNLOCK MESSAGE ==================== */
+.unlock-message {
+    color: #27ae60;
+    font-weight: 600;
+    margin-left: 10px;
+}
+
+.topic-unlock-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin: 10px 0;
+    font-weight: 500;
+}

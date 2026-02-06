@@ -8,7 +8,6 @@ from django.utils import timezone
 import subprocess
 import tempfile
 import os
-import re
 
 from .models import Topic, Question, UserProgress, TopicProgress
 from .serializers import (
@@ -21,19 +20,11 @@ from .serializers import (
 
 
 def normalize_output(text):
-    """
-    Normalize output for comparison:
-    - Remove \r (Windows line endings)
-    - Strip leading/trailing whitespace
-    - Normalize multiple spaces
-    """
+    """Normalize output for comparison"""
     if text is None:
         return ""
-    # Remove carriage returns (Windows line endings)
     text = text.replace('\r\n', '\n').replace('\r', '\n')
-    # Strip leading/trailing whitespace from each line
     lines = [line.strip() for line in text.strip().split('\n')]
-    # Remove empty lines at start and end
     while lines and lines[0] == '':
         lines.pop(0)
     while lines and lines[-1] == '':
@@ -47,6 +38,16 @@ def register(request):
     serializer = UserRegisterSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
+        
+        # Unlock first topic for new user
+        first_topic = Topic.objects.order_by('order').first()
+        if first_topic:
+            TopicProgress.objects.get_or_create(
+                user=user,
+                topic=first_topic,
+                defaults={'is_unlocked': True, 'is_completed': False}
+            )
+        
         refresh = RefreshToken.for_user(user)
         return Response({
             'message': 'Registration successful',
@@ -70,6 +71,15 @@ def get_user(request):
 @permission_classes([IsAuthenticated])
 def get_dashboard(request):
     user = request.user
+    
+    # Ensure first topic is unlocked
+    first_topic = Topic.objects.order_by('order').first()
+    if first_topic:
+        TopicProgress.objects.get_or_create(
+            user=user,
+            topic=first_topic,
+            defaults={'is_unlocked': True, 'is_completed': False}
+        )
     
     total_topics = Topic.objects.count()
     completed_topics = 0
@@ -109,6 +119,15 @@ def get_dashboard(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_topics(request):
+    # Ensure first topic is unlocked
+    first_topic = Topic.objects.order_by('order').first()
+    if first_topic:
+        TopicProgress.objects.get_or_create(
+            user=request.user,
+            topic=first_topic,
+            defaults={'is_unlocked': True, 'is_completed': False}
+        )
+    
     topics = Topic.objects.all().order_by('order')
     serializer = TopicSerializer(topics, many=True, context={'request': request})
     return Response(serializer.data)
@@ -122,6 +141,23 @@ def get_topic(request, topic_id):
     except Topic.DoesNotExist:
         return Response({'error': 'Topic not found'}, status=status.HTTP_404_NOT_FOUND)
     
+    # Check if topic is unlocked
+    first_topic = Topic.objects.order_by('order').first()
+    
+    if topic.id != first_topic.id:
+        # Not the first topic, check if unlocked
+        is_unlocked = TopicProgress.objects.filter(
+            user=request.user,
+            topic=topic,
+            is_unlocked=True
+        ).exists()
+        
+        if not is_unlocked:
+            return Response(
+                {'error': 'Topic is locked. Complete previous topics first.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+    
     serializer = TopicDetailSerializer(topic, context={'request': request})
     return Response(serializer.data)
 
@@ -133,6 +169,23 @@ def get_question(request, question_id):
         question = Question.objects.get(id=question_id)
     except Question.DoesNotExist:
         return Response({'error': 'Question not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Check if topic is unlocked
+    topic = question.topic
+    first_topic = Topic.objects.order_by('order').first()
+    
+    if topic.id != first_topic.id:
+        is_unlocked = TopicProgress.objects.filter(
+            user=request.user,
+            topic=topic,
+            is_unlocked=True
+        ).exists()
+        
+        if not is_unlocked:
+            return Response(
+                {'error': 'Topic is locked. Complete previous topics first.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
     
     serializer = QuestionDetailSerializer(question, context={'request': request})
     return Response(serializer.data)
@@ -209,13 +262,15 @@ def submit_code(request, question_id):
                 'message': 'Code has errors'
             })
         
-        # Normalize both outputs for comparison
         actual_output = normalize_output(result.stdout)
         expected_output = normalize_output(question.expected_output)
-        
         passed = actual_output == expected_output
         
+        topic_completed = False
+        next_topic_unlocked = False
+        
         if passed:
+            # Mark question as completed
             user_progress, created = UserProgress.objects.get_or_create(
                 user=request.user,
                 question=question
@@ -223,12 +278,45 @@ def submit_code(request, question_id):
             user_progress.completed = True
             user_progress.completed_at = timezone.now()
             user_progress.save()
+            
+            # Check if all questions in topic are completed
+            topic = question.topic
+            total_questions = topic.questions.count()
+            completed_questions = UserProgress.objects.filter(
+                user=request.user,
+                question__topic=topic,
+                completed=True
+            ).count()
+            
+            if completed_questions >= total_questions:
+                # Mark topic as completed
+                topic_progress, created = TopicProgress.objects.get_or_create(
+                    user=request.user,
+                    topic=topic
+                )
+                topic_progress.is_completed = True
+                topic_progress.is_unlocked = True
+                topic_progress.save()
+                topic_completed = True
+                
+                # Unlock next topic
+                next_topic = Topic.objects.filter(order__gt=topic.order).order_by('order').first()
+                if next_topic:
+                    next_progress, created = TopicProgress.objects.get_or_create(
+                        user=request.user,
+                        topic=next_topic
+                    )
+                    next_progress.is_unlocked = True
+                    next_progress.save()
+                    next_topic_unlocked = True
         
         return Response({
             'passed': passed,
             'output': actual_output,
             'expected': expected_output,
-            'message': 'Correct! Well done!' if passed else 'Output does not match expected result'
+            'message': 'Correct! Well done!' if passed else 'Output does not match expected result',
+            'topic_completed': topic_completed,
+            'next_topic_unlocked': next_topic_unlocked
         })
         
     except subprocess.TimeoutExpired:

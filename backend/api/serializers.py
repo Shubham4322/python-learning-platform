@@ -80,7 +80,24 @@ class TopicSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'description', 'order', 'is_unlocked', 'is_completed', 'questions_count', 'completed_count')
 
     def get_is_unlocked(self, obj):
-        return True
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            # First topic (order=1 or lowest order) is always unlocked
+            first_topic = Topic.objects.order_by('order').first()
+            if obj.id == first_topic.id:
+                return True
+            
+            # Check if this topic is unlocked in TopicProgress
+            progress = TopicProgress.objects.filter(
+                user=request.user,
+                topic=obj,
+                is_unlocked=True
+            ).exists()
+            return progress
+        
+        # For unauthenticated users, only first topic is unlocked
+        first_topic = Topic.objects.order_by('order').first()
+        return obj.id == first_topic.id if first_topic else False
 
     def get_is_completed(self, obj):
         request = self.context.get('request')
@@ -120,7 +137,19 @@ class TopicDetailSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'description', 'theory', 'order', 'questions', 'is_unlocked', 'is_completed')
 
     def get_is_unlocked(self, obj):
-        return True
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            first_topic = Topic.objects.order_by('order').first()
+            if obj.id == first_topic.id:
+                return True
+            
+            progress = TopicProgress.objects.filter(
+                user=request.user,
+                topic=obj,
+                is_unlocked=True
+            ).exists()
+            return progress
+        return False
 
     def get_is_completed(self, obj):
         request = self.context.get('request')

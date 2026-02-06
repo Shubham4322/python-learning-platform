@@ -36,7 +36,9 @@ const Question = () => {
             setAllTopics(topicsData);
             setCode('# Write your Python code here\n\n');
         } catch (err) {
-            if (err.response?.status === 404) {
+            if (err.response?.status === 403) {
+                setError('This topic is locked. Complete previous topics first.');
+            } else if (err.response?.status === 404) {
                 setError('Question not found.');
             } else {
                 setError('Failed to load question. Please try again.');
@@ -110,7 +112,7 @@ const Question = () => {
         return (
             <div className="question-error">
                 <div className="error-box">
-                    <h2>⚠️ Oops!</h2>
+                    <h2>🔒 Topic Locked</h2>
                     <p>{error}</p>
                     <Link to="/dashboard" className="back-button">
                         Back to Dashboard
@@ -204,6 +206,12 @@ const Question = () => {
                         <div className="result-content">
                             <h3>{result.passed ? 'Correct! Well Done!' : 'Not Quite Right'}</h3>
                             <p>{result.message}</p>
+                            
+                            {result.topic_completed && (
+                                <p className="topic-unlock-message">
+                                    🎊 Topic Completed! Next topic has been unlocked!
+                                </p>
+                            )}
                             
                             {!result.passed && (
                                 <div className="result-comparison">

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getTopic, getTopics } from '../services/api';
 import Sidebar from '../components/Sidebar';
 
 const Topic = () => {
     const { topicId } = useParams();
+    const navigate = useNavigate();
     const [topic, setTopic] = useState(null);
     const [allTopics, setAllTopics] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -25,7 +26,9 @@ const Topic = () => {
             setTopic(topicData);
             setAllTopics(topicsData);
         } catch (err) {
-            if (err.response?.status === 404) {
+            if (err.response?.status === 403) {
+                setError('This topic is locked. Complete previous topics first.');
+            } else if (err.response?.status === 404) {
                 setError('Topic not found.');
             } else {
                 setError('Failed to load topic. Please try again.');
@@ -48,7 +51,7 @@ const Topic = () => {
         return (
             <div className="topic-error">
                 <div className="error-box">
-                    <h2>⚠️ Oops!</h2>
+                    <h2>🔒 Topic Locked</h2>
                     <p>{error}</p>
                     <Link to="/dashboard" className="back-button">
                         Back to Dashboard
@@ -85,7 +88,7 @@ const Topic = () => {
 
                 {/* Instructions */}
                 <div className="instructions">
-                    <p>📝 Read the theory above, then solve the questions below to complete this topic.</p>
+                    <p>📝 Read the theory above, then solve the questions below to complete this topic and unlock the next one.</p>
                 </div>
 
                 {/* Questions Section */}
@@ -132,6 +135,7 @@ const Topic = () => {
                     <div className="topic-progress-bar">
                         <div className="progress-info">
                             <span>Progress: {topic.questions ? topic.questions.filter(q => q.is_completed).length : 0}/{topic.questions ? topic.questions.length : 0} questions completed</span>
+                            {topic.is_completed && <span className="unlock-message"> ✅ Topic Completed! Next topic unlocked.</span>}
                         </div>
                         <div className="progress-bar-bg">
                             <div 
