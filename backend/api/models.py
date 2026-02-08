@@ -23,6 +23,20 @@ class Question(models.Model):
     expected_output = models.TextField()
     order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    # NEW: Required keywords to prevent cheating
+    required_keywords = models.CharField(
+        max_length=500, 
+        blank=True,
+        help_text="Comma-separated keywords required in code (e.g., for,range,print)"
+    )
+    
+    # NEW: Hint for required keywords
+    hint = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Hint to show user about what to use (e.g., 'Use a for loop')"
+    )
 
     class Meta:
         ordering = ['order']
@@ -36,6 +50,12 @@ class UserProgress(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
+    
+    # NEW: Save user's submitted code
+    submitted_code = models.TextField(blank=True, default='')
+    
+    # NEW: Track attempts
+    attempts = models.IntegerField(default=0)
 
     class Meta:
         unique_together = ['user', 'question']

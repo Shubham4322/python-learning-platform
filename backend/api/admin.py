@@ -27,18 +27,49 @@ class TopicAdmin(SummernoteModelAdmin):
 @admin.register(Question)
 class QuestionAdmin(SummernoteModelAdmin):
     summernote_fields = ('description',)
-    list_display = ('id', 'title', 'topic', 'order', 'created_at')
+    list_display = ('id', 'title', 'topic', 'order', 'has_keywords', 'created_at')
     list_display_links = ('id', 'title')
     list_editable = ('order',)
     list_filter = ('topic',)
     search_fields = ('title', 'description')
     ordering = ('topic', 'order')
+    
+    fieldsets = (
+        ('Basic Info', {
+            'fields': ('topic', 'title', 'order')
+        }),
+        ('Question Content', {
+            'fields': ('description', 'expected_output')
+        }),
+        ('Anti-Cheating (Optional)', {
+            'fields': ('required_keywords', 'hint'),
+            'classes': ('collapse',),
+            'description': 'Set required keywords to prevent direct print cheating'
+        }),
+    )
+    
+    def has_keywords(self, obj):
+        return bool(obj.required_keywords)
+    has_keywords.short_description = 'Has Keywords'
+    has_keywords.boolean = True
 
 
 @admin.register(UserProgress)
 class UserProgressAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'question', 'completed', 'completed_at')
+    list_display = ('id', 'user', 'question', 'completed', 'attempts', 'completed_at')
     list_filter = ('completed', 'user')
+    search_fields = ('user__username', 'question__title')
+    readonly_fields = ('submitted_code',)
+    
+    fieldsets = (
+        ('Progress Info', {
+            'fields': ('user', 'question', 'completed', 'attempts', 'completed_at')
+        }),
+        ('Submitted Code', {
+            'fields': ('submitted_code',),
+            'classes': ('collapse',),
+        }),
+    )
 
 
 @admin.register(TopicProgress)

@@ -34,7 +34,13 @@ const Question = () => {
             ]);
             setQuestion(questionData);
             setAllTopics(topicsData);
-            setCode('# Write your Python code here\n\n');
+            
+            // Load saved code if exists, otherwise use default
+            if (questionData.submitted_code && questionData.submitted_code.trim()) {
+                setCode(questionData.submitted_code);
+            } else {
+                setCode('# Write your Python code here\n\n');
+            }
         } catch (err) {
             if (err.response?.status === 403) {
                 setError('This topic is locked. Complete previous topics first.');
@@ -88,6 +94,12 @@ const Question = () => {
             const response = await submitCode(questionId, code);
             setResult(response);
             setOutput(response.output || '(No output)');
+            
+            // Refresh question data to update attempts count
+            if (response.passed) {
+                const updatedQuestion = await getQuestion(questionId);
+                setQuestion(updatedQuestion);
+            }
         } catch (err) {
             setOutput('Error: Failed to submit code. Please try again.');
             console.error(err);
@@ -98,6 +110,12 @@ const Question = () => {
 
     const handleNextQuestion = () => {
         navigate(`/topic/${question.topic}`);
+    };
+
+    const handleReset = () => {
+        setCode('# Write your Python code here\n\n');
+        setOutput('');
+        setResult(null);
     };
 
     if (loading) {
@@ -135,9 +153,16 @@ const Question = () => {
                         ← Back to {question.topic_title}
                     </Link>
                     <h1 className="question-title">{question.title}</h1>
-                    {question.is_completed && (
-                        <span className="completed-badge">✓ Completed</span>
-                    )}
+                    <div className="question-meta">
+                        {question.is_completed && (
+                            <span className="completed-badge">✓ Completed</span>
+                        )}
+                        {question.attempts > 0 && (
+                            <span className="attempts-badge">
+                                Attempts: {question.attempts}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {/* Question Description */}
@@ -149,7 +174,15 @@ const Question = () => {
                     />
                 </div>
 
-                {/* Expected Output Hint */}
+                {/* Hint if available */}
+                {question.hint && (
+                    <div className="hint-box">
+                        <h3>💡 Hint</h3>
+                        <p>{question.hint}</p>
+                    </div>
+                )}
+
+                {/* Expected Output */}
                 <div className="expected-output-hint">
                     <h3>Expected Output:</h3>
                     <pre>{question.expected_output}</pre>
@@ -157,7 +190,16 @@ const Question = () => {
 
                 {/* Code Editor */}
                 <div className="editor-section">
-                    <h2>💻 Your Code</h2>
+                    <div className="editor-header">
+                        <h2>💻 Your Code</h2>
+                        <button 
+                            className="reset-button"
+                            onClick={handleReset}
+                            disabled={running || submitting}
+                        >
+                            🔄 Reset Code
+                        </button>
+                    </div>
                     <CodeEditor 
                         value={code} 
                         onChange={setCode}
@@ -207,13 +249,24 @@ const Question = () => {
                             <h3>{result.passed ? 'Correct! Well Done!' : 'Not Quite Right'}</h3>
                             <p>{result.message}</p>
                             
+                            {result.missing_keywords && result.missing_keywords.length > 0 && (
+                                <div className="missing-keywords-warning">
+                                    <p>⚠️ Your code must use these keywords:</p>
+                                    <ul>
+                                        {result.missing_keywords.map((kw, index) => (
+                                            <li key={index}><code>{kw}</code></li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                            
                             {result.topic_completed && (
                                 <p className="topic-unlock-message">
                                     🎊 Topic Completed! Next topic has been unlocked!
                                 </p>
                             )}
                             
-                            {!result.passed && (
+                            {!result.passed && !result.missing_keywords && (
                                 <div className="result-comparison">
                                     <div className="comparison-item">
                                         <strong>Your Output:</strong>

@@ -8,6 +8,7 @@ from django.utils import timezone
 import subprocess
 import tempfile
 import os
+import re
 
 from .models import Topic, Question, UserProgress, TopicProgress
 from .serializers import (
@@ -24,12 +25,27 @@ def normalize_output(text):
     if text is None:
         return ""
     text = text.replace('\r\n', '\n').replace('\r', '\n')
-    lines = [line.strip() for line in text.strip().split('\n')]
-    while lines and lines[0] == '':
-        lines.pop(0)
-    while lines and lines[-1] == '':
-        lines.pop()
-    return '\n'.join(lines)
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
+
+def check_required_keywords(code, required_keywords):
+    """
+    Check if code contains required keywords.
+    Returns (is_valid, missing_keywords)
+    """
+    if not required_keywords or required_keywords.strip() == '':
+        return True, []
+    
+    keywords = [k.strip().lower() for k in required_keywords.split(',') if k.strip()]
+    code_lower = code.lower()
+    
+    missing = []
+    for keyword in keywords:
+        if keyword not in code_lower:
+            missing.append(keyword)
+    
+    return len(missing) == 0, missing
 
 
 @api_view(['POST'])
@@ -39,7 +55,6 @@ def register(request):
     if serializer.is_valid():
         user = serializer.save()
         
-        # Unlock first topic for new user
         first_topic = Topic.objects.order_by('order').first()
         if first_topic:
             TopicProgress.objects.get_or_create(
@@ -72,14 +87,16 @@ def get_user(request):
 def get_dashboard(request):
     user = request.user
     
-    # Ensure first topic is unlocked
     first_topic = Topic.objects.order_by('order').first()
     if first_topic:
-        TopicProgress.objects.get_or_create(
+        progress, created = TopicProgress.objects.get_or_create(
             user=user,
             topic=first_topic,
             defaults={'is_unlocked': True, 'is_completed': False}
         )
+        if not progress.is_unlocked:
+            progress.is_unlocked = True
+            progress.save()
     
     total_topics = Topic.objects.count()
     completed_topics = 0
@@ -119,14 +136,16 @@ def get_dashboard(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_topics(request):
-    # Ensure first topic is unlocked
     first_topic = Topic.objects.order_by('order').first()
     if first_topic:
-        TopicProgress.objects.get_or_create(
+        progress, created = TopicProgress.objects.get_or_create(
             user=request.user,
             topic=first_topic,
             defaults={'is_unlocked': True, 'is_completed': False}
         )
+        if not progress.is_unlocked:
+            progress.is_unlocked = True
+            progress.save()
     
     topics = Topic.objects.all().order_by('order')
     serializer = TopicSerializer(topics, many=True, context={'request': request})
@@ -141,11 +160,9 @@ def get_topic(request, topic_id):
     except Topic.DoesNotExist:
         return Response({'error': 'Topic not found'}, status=status.HTTP_404_NOT_FOUND)
     
-    # Check if topic is unlocked
     first_topic = Topic.objects.order_by('order').first()
     
     if topic.id != first_topic.id:
-        # Not the first topic, check if unlocked
         is_unlocked = TopicProgress.objects.filter(
             user=request.user,
             topic=topic,
@@ -170,7 +187,6 @@ def get_question(request, question_id):
     except Question.DoesNotExist:
         return Response({'error': 'Question not found'}, status=status.HTTP_404_NOT_FOUND)
     
-    # Check if topic is unlocked
     topic = question.topic
     first_topic = Topic.objects.order_by('order').first()
     
@@ -239,6 +255,30 @@ def submit_code(request, question_id):
     if not code.strip():
         return Response({'error': 'No code provided'}, status=status.HTTP_400_BAD_REQUEST)
     
+    # Get or create user progress to track attempts
+    user_progress, created = UserProgress.objects.get_or_create(
+        user=request.user,
+        question=question
+    )
+    
+    # Increment attempts
+    user_progress.attempts += 1
+    user_progress.submitted_code = code  # Save code regardless of result
+    user_progress.save()
+    
+    # Check required keywords (anti-cheating)
+    is_valid, missing_keywords = check_required_keywords(code, question.required_keywords)
+    
+    if not is_valid:
+        return Response({
+            'passed': False,
+            'output': None,
+            'expected': question.expected_output,
+            'message': f'Your code must use: {", ".join(missing_keywords)}',
+            'missing_keywords': missing_keywords,
+            'attempts': user_progress.attempts
+        })
+    
     try:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
             f.write(code)
@@ -259,7 +299,8 @@ def submit_code(request, question_id):
                 'passed': False,
                 'output': result.stderr,
                 'expected': question.expected_output,
-                'message': 'Code has errors'
+                'message': 'Code has errors',
+                'attempts': user_progress.attempts
             })
         
         actual_output = normalize_output(result.stdout)
@@ -268,18 +309,13 @@ def submit_code(request, question_id):
         
         topic_completed = False
         next_topic_unlocked = False
+        next_topic_name = None
         
         if passed:
-            # Mark question as completed
-            user_progress, created = UserProgress.objects.get_or_create(
-                user=request.user,
-                question=question
-            )
             user_progress.completed = True
             user_progress.completed_at = timezone.now()
             user_progress.save()
             
-            # Check if all questions in topic are completed
             topic = question.topic
             total_questions = topic.questions.count()
             completed_questions = UserProgress.objects.filter(
@@ -289,7 +325,6 @@ def submit_code(request, question_id):
             ).count()
             
             if completed_questions >= total_questions:
-                # Mark topic as completed
                 topic_progress, created = TopicProgress.objects.get_or_create(
                     user=request.user,
                     topic=topic
@@ -299,7 +334,6 @@ def submit_code(request, question_id):
                 topic_progress.save()
                 topic_completed = True
                 
-                # Unlock next topic
                 next_topic = Topic.objects.filter(order__gt=topic.order).order_by('order').first()
                 if next_topic:
                     next_progress, created = TopicProgress.objects.get_or_create(
@@ -309,6 +343,7 @@ def submit_code(request, question_id):
                     next_progress.is_unlocked = True
                     next_progress.save()
                     next_topic_unlocked = True
+                    next_topic_name = next_topic.title
         
         return Response({
             'passed': passed,
@@ -316,7 +351,9 @@ def submit_code(request, question_id):
             'expected': expected_output,
             'message': 'Correct! Well done!' if passed else 'Output does not match expected result',
             'topic_completed': topic_completed,
-            'next_topic_unlocked': next_topic_unlocked
+            'next_topic_unlocked': next_topic_unlocked,
+            'next_topic_name': next_topic_name,
+            'attempts': user_progress.attempts
         })
         
     except subprocess.TimeoutExpired:
@@ -325,12 +362,14 @@ def submit_code(request, question_id):
             'passed': False,
             'output': None,
             'expected': question.expected_output,
-            'message': 'Code execution timed out'
+            'message': 'Code execution timed out',
+            'attempts': user_progress.attempts
         })
     except Exception as e:
         return Response({
             'passed': False,
             'output': None,
             'expected': question.expected_output,
-            'message': str(e)
+            'message': str(e),
+            'attempts': user_progress.attempts
         })

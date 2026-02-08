@@ -34,10 +34,12 @@ class UserSerializer(serializers.ModelSerializer):
 
 class QuestionSerializer(serializers.ModelSerializer):
     is_completed = serializers.SerializerMethodField()
+    submitted_code = serializers.SerializerMethodField()
+    attempts = serializers.SerializerMethodField()
 
     class Meta:
         model = Question
-        fields = ('id', 'title', 'description', 'order', 'is_completed')
+        fields = ('id', 'title', 'description', 'order', 'is_completed', 'submitted_code', 'attempts', 'hint')
 
     def get_is_completed(self, obj):
         request = self.context.get('request')
@@ -48,15 +50,39 @@ class QuestionSerializer(serializers.ModelSerializer):
                 completed=True
             ).exists()
         return False
+
+    def get_submitted_code(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            progress = UserProgress.objects.filter(
+                user=request.user,
+                question=obj
+            ).first()
+            return progress.submitted_code if progress else ''
+        return ''
+
+    def get_attempts(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            progress = UserProgress.objects.filter(
+                user=request.user,
+                question=obj
+            ).first()
+            return progress.attempts if progress else 0
+        return 0
 
 
 class QuestionDetailSerializer(serializers.ModelSerializer):
     is_completed = serializers.SerializerMethodField()
     topic_title = serializers.CharField(source='topic.title', read_only=True)
+    submitted_code = serializers.SerializerMethodField()
+    attempts = serializers.SerializerMethodField()
 
     class Meta:
         model = Question
-        fields = ('id', 'title', 'description', 'expected_output', 'order', 'is_completed', 'topic_title', 'topic')
+        fields = ('id', 'title', 'description', 'expected_output', 'order', 
+                  'is_completed', 'topic_title', 'topic', 'submitted_code', 
+                  'attempts', 'hint', 'required_keywords')
 
     def get_is_completed(self, obj):
         request = self.context.get('request')
@@ -67,6 +93,26 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
                 completed=True
             ).exists()
         return False
+
+    def get_submitted_code(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            progress = UserProgress.objects.filter(
+                user=request.user,
+                question=obj
+            ).first()
+            return progress.submitted_code if progress else ''
+        return ''
+
+    def get_attempts(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            progress = UserProgress.objects.filter(
+                user=request.user,
+                question=obj
+            ).first()
+            return progress.attempts if progress else 0
+        return 0
 
 
 class TopicSerializer(serializers.ModelSerializer):
@@ -82,12 +128,10 @@ class TopicSerializer(serializers.ModelSerializer):
     def get_is_unlocked(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            # First topic (order=1 or lowest order) is always unlocked
             first_topic = Topic.objects.order_by('order').first()
             if obj.id == first_topic.id:
                 return True
             
-            # Check if this topic is unlocked in TopicProgress
             progress = TopicProgress.objects.filter(
                 user=request.user,
                 topic=obj,
@@ -95,7 +139,6 @@ class TopicSerializer(serializers.ModelSerializer):
             ).exists()
             return progress
         
-        # For unauthenticated users, only first topic is unlocked
         first_topic = Topic.objects.order_by('order').first()
         return obj.id == first_topic.id if first_topic else False
 
