@@ -43,7 +43,6 @@ class QuestionAdmin(SummernoteModelAdmin):
         }),
         ('Anti-Cheating (Optional)', {
             'fields': ('required_keywords', 'hint'),
-            'classes': ('collapse',),
             'description': 'Set required keywords to prevent direct print cheating'
         }),
     )
@@ -67,7 +66,6 @@ class UserProgressAdmin(admin.ModelAdmin):
         }),
         ('Submitted Code', {
             'fields': ('submitted_code',),
-            'classes': ('collapse',),
         }),
     )
 
