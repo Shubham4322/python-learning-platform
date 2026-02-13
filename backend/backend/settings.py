@@ -145,6 +145,9 @@ JAZZMIN_SETTINGS = {
         "api.UserProgress": "fas fa-chart-line",
         "api.TopicProgress": "fas fa-tasks",
     },
+    "topmenu_links": [
+        {"name": "Log out", "url": "/admin-logout/"},
+    ],
 }
 
 JAZZMIN_UI_TWEAKS = {
