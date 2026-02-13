@@ -1,11 +1,22 @@
 from django.contrib import admin
+from django.contrib.admin import AdminSite
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from django_summernote.admin import SummernoteModelAdmin
 from .models import Topic, Question, UserProgress, TopicProgress
-from .admin_site import pylearn_admin_site
 
-# Use custom admin site (fixes login redirect 404)
+
+class PyLearnAdminSite(AdminSite):
+    """Admin site that forces redirect to /admin/ after login to avoid 404."""
+
+    def login(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context.setdefault('next', '/admin/')
+        return super().login(request, extra_context=extra_context)
+
+
+# Single custom admin site (used by urls and for model registration)
+pylearn_admin_site = PyLearnAdminSite(name='admin')
 site = pylearn_admin_site
 site.site_header = "PyLearn Administration"
 site.site_title = "PyLearn Admin"
