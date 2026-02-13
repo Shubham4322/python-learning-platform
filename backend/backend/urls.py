@@ -18,7 +18,9 @@ def home(request):
 def admin_logout_view(request):
     """Log out and redirect to admin login (for admin panel logout button)."""
     logout(request)
-    return redirect('admin:login')
+    # Redirect to admin login page
+    from django.urls import reverse
+    return redirect(reverse('admin:login'))
 
 
 urlpatterns = [

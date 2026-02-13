@@ -148,6 +148,9 @@ JAZZMIN_SETTINGS = {
     "topmenu_links": [
         {"name": "Log out", "url": "/admin-logout/"},
     ],
+    "usermenu_links": [
+        {"name": "Log out", "url": "/admin-logout/"},
+    ],
 }
 
 JAZZMIN_UI_TWEAKS = {
