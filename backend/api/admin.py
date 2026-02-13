@@ -1,29 +1,24 @@
 from django.contrib import admin
-from django.contrib.admin import AdminSite
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from django_summernote.admin import SummernoteModelAdmin
 from .models import Topic, Question, UserProgress, TopicProgress
 
-
-class PyLearnAdminSite(AdminSite):
-    """Admin site that forces redirect to /admin/ after login to avoid 404."""
-
-    def login(self, request, extra_context=None):
-        extra_context = extra_context or {}
-        extra_context.setdefault('next', '/admin/')
-        return super().login(request, extra_context=extra_context)
+admin.site.site_header = "PyLearn Administration"
+admin.site.site_title = "PyLearn Admin"
+admin.site.index_title = "Welcome to PyLearn Admin Panel"
 
 
-# Single custom admin site (used by urls and for model registration)
-pylearn_admin_site = PyLearnAdminSite(name='admin')
-site = pylearn_admin_site
-site.site_header = "PyLearn Administration"
-site.site_title = "PyLearn Admin"
-site.index_title = "Welcome to PyLearn Admin Panel"
+# Fix admin login redirect 404: always send user to /admin/ after login
+_original_admin_login = admin.site.login
+def _patched_admin_login(request, extra_context=None):
+    extra_context = extra_context or {}
+    extra_context.setdefault('next', '/admin/')
+    return _original_admin_login(request, extra_context=extra_context)
+admin.site.login = _patched_admin_login
 
 
-@site.register(Topic)
+@admin.register(Topic)
 class TopicAdmin(SummernoteModelAdmin):
     summernote_fields = ('theory',)
     list_display = ('id', 'title', 'order', 'questions_count', 'created_at')
@@ -37,7 +32,7 @@ class TopicAdmin(SummernoteModelAdmin):
     questions_count.short_description = 'Questions'
 
 
-@site.register(Question)
+@admin.register(Question)
 class QuestionAdmin(SummernoteModelAdmin):
     summernote_fields = ('description',)
     list_display = ('id', 'title', 'topic', 'order', 'has_keywords', 'created_at')
@@ -66,7 +61,7 @@ class QuestionAdmin(SummernoteModelAdmin):
     has_keywords.boolean = True
 
 
-@site.register(UserProgress)
+@admin.register(UserProgress)
 class UserProgressAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'question', 'completed', 'attempts', 'completed_at')
     list_filter = ('completed', 'user')
@@ -83,7 +78,7 @@ class UserProgressAdmin(admin.ModelAdmin):
     )
 
 
-@site.register(TopicProgress)
+@admin.register(TopicProgress)
 class TopicProgressAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'topic', 'is_unlocked', 'is_completed')
     list_filter = ('is_unlocked', 'is_completed', 'user')
@@ -93,9 +88,9 @@ class CustomUserAdmin(UserAdmin):
     search_fields = ('username', 'email')
 
 
-# User model is registered on default admin by auth; register on our site
+# User model: ensure our CustomUserAdmin is used
 from django.contrib.auth import get_user_model
 UserModel = get_user_model()
 if admin.site.is_registered(UserModel):
     admin.site.unregister(UserModel)
-site.register(UserModel, CustomUserAdmin)
+admin.site.register(UserModel, CustomUserAdmin)
