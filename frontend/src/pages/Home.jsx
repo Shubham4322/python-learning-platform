@@ -123,7 +123,7 @@ print(f"Welcome to {name}")
 
             {/* Footer */}
             <footer className="footer">
-                <p>© 2024 PyLearn - Python Learning Platform</p>
+                <p>© 2026 PyLearn - Python Learning Platform</p>
             </footer>
         </div>
     );
