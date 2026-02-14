@@ -42,18 +42,8 @@ class QuestionAdmin(SummernoteModelAdmin):
     search_fields = ('title', 'description')
     ordering = ('topic', 'order')
     
-    fieldsets = (
-        ('Basic Info', {
-            'fields': ('topic', 'title', 'order')
-        }),
-        ('Question Content', {
-            'fields': ('description', 'expected_output')
-        }),
-        ('Anti-Cheating (Optional)', {
-            'fields': ('required_keywords', 'hint'),
-            'description': 'Set required keywords to prevent direct print cheating'
-        }),
-    )
+    # Using simple fields instead of fieldsets to avoid collapsible section issues
+    fields = ('topic', 'title', 'order', 'description', 'expected_output', 'required_keywords', 'hint')
     
     def has_keywords(self, obj):
         return bool(obj.required_keywords)
