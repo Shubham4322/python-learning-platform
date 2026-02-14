@@ -33,7 +33,7 @@ const Topic = () => {
             } else {
                 setError('Failed to load topic. Please try again.');
             }
-            console.error(err);
+            console.error('Topic fetch error:', err);
         } finally {
             setLoading(false);
         }

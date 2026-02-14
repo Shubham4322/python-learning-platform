@@ -129,7 +129,7 @@ class TopicSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             first_topic = Topic.objects.order_by('order').first()
-            if obj.id == first_topic.id:
+            if first_topic and obj.id == first_topic.id:
                 return True
             
             progress = TopicProgress.objects.filter(
@@ -183,7 +183,7 @@ class TopicDetailSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             first_topic = Topic.objects.order_by('order').first()
-            if obj.id == first_topic.id:
+            if first_topic and obj.id == first_topic.id:
                 return True
             
             progress = TopicProgress.objects.filter(

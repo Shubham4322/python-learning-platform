@@ -73,8 +73,8 @@ const Question = () => {
                 setOutput(response.output || '(No output)');
             }
         } catch (err) {
-            setOutput('Error: Failed to run code. Please try again.');
-            console.error(err);
+            setOutput('Error: Failed to run code. Please check your connection and try again.');
+            console.error('Run code error:', err);
         } finally {
             setRunning(false);
         }
@@ -101,14 +101,15 @@ const Question = () => {
                 setQuestion(updatedQuestion);
             }
         } catch (err) {
-            setOutput('Error: Failed to submit code. Please try again.');
-            console.error(err);
+            setOutput('Error: Failed to submit code. Please check your connection and try again.');
+            console.error('Submit error:', err);
         } finally {
             setSubmitting(false);
         }
     };
 
     const handleNextQuestion = () => {
+        // Navigate to the topic page
         navigate(`/topic/${question.topic}`);
     };
 

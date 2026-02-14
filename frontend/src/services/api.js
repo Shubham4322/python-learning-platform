@@ -6,13 +6,17 @@ const API_BASE_URL = isLocalhost
     ? 'http://127.0.0.1:8000/api'
     : 'https://pylearn-backend.onrender.com/api';
 
-console.log('API URL:', API_BASE_URL);
+// Log API URL in development
+if (isLocalhost) {
+    console.log('API URL (Development):', API_BASE_URL);
+}
 
 const API = axios.create({
     baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
+    timeout: 30000, // 30 second timeout
 });
 
 API.interceptors.request.use((config) => {
@@ -21,12 +25,21 @@ API.interceptors.request.use((config) => {
         config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
+}, (error) => {
+    return Promise.reject(error);
 });
 
 API.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+        
+        // Handle network errors
+        if (!error.response) {
+            console.error('Network error:', error.message);
+            return Promise.reject(new Error('Network error. Please check your connection.'));
+        }
+        
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
             const refreshToken = localStorage.getItem('refresh_token');
@@ -34,7 +47,8 @@ API.interceptors.response.use(
                 try {
                     const response = await axios.post(
                         `${API_BASE_URL}/auth/refresh/`,
-                        { refresh: refreshToken }
+                        { refresh: refreshToken },
+                        { timeout: 10000 }
                     );
                     const newAccessToken = response.data.access;
                     localStorage.setItem('access_token', newAccessToken);
@@ -47,6 +61,8 @@ API.interceptors.response.use(
                 }
             }
         }
+        
+        // Return error with more details
         return Promise.reject(error);
     }
 );

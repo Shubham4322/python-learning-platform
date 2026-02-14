@@ -48,9 +48,14 @@ const Login = () => {
         } catch (err) {
             if (err.response?.status === 401) {
                 setError('Invalid username or password');
+            } else if (err.message === 'Network error. Please check your connection.') {
+                setError('Unable to connect to server. Please check your internet connection.');
+            } else if (err.response?.data?.detail) {
+                setError(err.response.data.detail);
             } else {
                 setError('Something went wrong. Please try again.');
             }
+            console.error('Login error:', err);
         } finally {
             setLoading(false);
         }

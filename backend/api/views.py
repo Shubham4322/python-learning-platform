@@ -162,7 +162,7 @@ def get_topic(request, topic_id):
     
     first_topic = Topic.objects.order_by('order').first()
     
-    if topic.id != first_topic.id:
+    if first_topic and topic.id != first_topic.id:
         is_unlocked = TopicProgress.objects.filter(
             user=request.user,
             topic=topic,
@@ -190,7 +190,7 @@ def get_question(request, question_id):
     topic = question.topic
     first_topic = Topic.objects.order_by('order').first()
     
-    if topic.id != first_topic.id:
+    if first_topic and topic.id != first_topic.id:
         is_unlocked = TopicProgress.objects.filter(
             user=request.user,
             topic=topic,

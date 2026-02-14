@@ -16,8 +16,12 @@ const Dashboard = () => {
             const data = await getDashboard();
             setDashboardData(data);
         } catch (err) {
-            setError('Failed to load dashboard. Please try again.');
-            console.error(err);
+            if (err.message === 'Network error. Please check your connection.') {
+                setError('Unable to connect to server. Please check your internet connection.');
+            } else {
+                setError('Failed to load dashboard. Please try again.');
+            }
+            console.error('Dashboard fetch error:', err);
         } finally {
             setLoading(false);
         }

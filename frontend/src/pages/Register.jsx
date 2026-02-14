@@ -58,20 +58,25 @@ const Register = () => {
             login(response.user, response.tokens);
             navigate('/dashboard');
         } catch (err) {
-            if (err.response?.data) {
+            if (err.message === 'Network error. Please check your connection.') {
+                setError('Unable to connect to server. Please check your internet connection.');
+            } else if (err.response?.data) {
                 const errors = err.response.data;
                 if (errors.username) {
-                    setError(errors.username[0]);
+                    setError(Array.isArray(errors.username) ? errors.username[0] : errors.username);
                 } else if (errors.email) {
-                    setError(errors.email[0]);
+                    setError(Array.isArray(errors.email) ? errors.email[0] : errors.email);
                 } else if (errors.password) {
-                    setError(errors.password[0]);
+                    setError(Array.isArray(errors.password) ? errors.password[0] : errors.password);
+                } else if (errors.non_field_errors) {
+                    setError(Array.isArray(errors.non_field_errors) ? errors.non_field_errors[0] : errors.non_field_errors);
                 } else {
                     setError('Registration failed. Please try again.');
                 }
             } else {
                 setError('Something went wrong. Please try again.');
             }
+            console.error('Registration error:', err);
         } finally {
             setLoading(false);
         }
