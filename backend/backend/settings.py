@@ -129,7 +129,7 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
 ]
 
-# Jazzmin
+# Jazzmin - Simplified for better performance
 JAZZMIN_SETTINGS = {
     "site_title": "PyLearn Admin",
     "site_header": "PyLearn",
@@ -137,14 +137,6 @@ JAZZMIN_SETTINGS = {
     "welcome_sign": "Welcome to PyLearn Admin",
     "show_sidebar": True,
     "navigation_expanded": True,
-    "icons": {
-        "auth": "fas fa-users-cog",
-        "auth.user": "fas fa-user",
-        "api.Topic": "fas fa-book",
-        "api.Question": "fas fa-question-circle",
-        "api.UserProgress": "fas fa-chart-line",
-        "api.TopicProgress": "fas fa-tasks",
-    },
     "topmenu_links": [
         {"name": "Log out", "url": "/admin-logout/"},
     ],
