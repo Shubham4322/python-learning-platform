@@ -23,8 +23,15 @@ def admin_logout_view(request):
     return redirect(reverse('admin:login'))
 
 
+# Handler for Django admin redirect after login
+def admin_login_redirect(request):
+    """Redirect to admin after login."""
+    from django.shortcuts import redirect
+    return redirect('/admin/')
+
 urlpatterns = [
     path('', home, name='home'),
+    path('accounts/profile/', admin_login_redirect),  # Fix admin redirect
     path('admin-logout/', admin_logout_view, name='admin_logout'),
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
